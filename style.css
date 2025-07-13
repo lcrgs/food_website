@@ -1,0 +1,121 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #d4957e;
+}
+
+.container {
+  text-align: center;
+  background-color: #fff5f1;
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  color: #956a5b;
+}
+
+label {
+  display: block;
+  margin-top: 1.2rem;
+  font-weight: bold;
+  color: #5e3f36;
+}
+
+input[type="number"] {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  width: 10%;
+  max-width: 300px;
+  margin-top: 0.3rem;
+}
+
+.btn {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background-color: #956a5b;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+  background-color: #b38e81;
+}
+
+.tag-list {
+  display: flex; 
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.tag {
+  background-color: #d4957e;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  border: 1px solid #d4957e;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.tag.selected {
+  background-color: #b38e81;
+  color: white;
+}
+
+
+select {
+  display: none;
+}
+
+.add-dish-btn {
+  position: absolute;
+  top: 20%;
+  left: 20%;
+  text-decoration: none;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff5f1;
+  background-color: #956a5b;
+  padding: 0.4rem 0.9rem;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+}
+
+.add-dish-btn:hover {
+  background-color: #b38e81;
+}
+.idea-btn {
+  position: absolute;
+  top: 20%;
+  right: 20%;
+  text-decoration: none;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff5f1;
+  background-color: #956a5b;
+  padding: 0.4rem 0.9rem;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+}
+
+.idea-btn:hover {
+  background-color: #b38e81;
+}

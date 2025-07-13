@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meal Planner</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Add schedule table styling */
+    #scheduleResult {
+      margin-top: 2rem;
+      background-color: #fff5f1;
+      padding: 1rem;
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    th,
+    td {
+      border: 1px solid #d4957e;
+      padding: 0.8rem 1rem;
+      color: #5e3f36;
+    }
+
+    th {
+      background-color: #d4957e;
+      color: white;
+      font-weight: 600;
+    }
+
+    td.lunch {
+      background-color: #e6f2e6;
+      font-weight: 600;
+    }
+
+    td.dinner {
+      background-color: #f9e6e6;
+      font-weight: 600;
+    }
+
+    td.lunch:hover,
+    td.dinner:hover {
+      background-color: #ffe8cc;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+      box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.15);
+    }
+
+    /* New styles for enhanced tag controls */
+    .tag-container {
+      position: relative;
+      display: inline-block;
+      margin: 5px;
+    }
+
+    .tag {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      background-color: #d4957e;
+      color: white;
+      border-radius: 20px;
+      cursor: pointer;
+      margin: 5px;
+      transition: all 0.2s;
+    }
+
+    .tag.unselected {
+      background-color: #f0f0f0;
+      color: #5e3f36;
+    }
+
+    .tag-controls {
+      display: flex;
+      margin-left: 8px;
+    }
+
+    .tag-count {
+      background: white;
+      color: #5e3f36;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      margin-right: 5px;
+      cursor: pointer;
+    }
+
+    .tag-mandatory {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .tag-mandatory.active {
+      color: #ff3b30;
+    }
+  </style>
+</head>
+
+<body>
+  <a href="add-dish.html" class="add-dish-btn" title="Add a New Dish">＋</a>
+  <a href="ideas.html" class="idea-btn" title="Find Dish Ideas">
+    <i data-lucide="lightbulb"></i>
+  </a>
+  <div class="container">
+    <form id="scheduleForm">
+      <!-- Number of Days -->
+      <label for="days">Number of Days:</label>
+      <input type="number" id="days" name="days" min="1" max="7" required />
+
+      <!-- Preferred Tags -->
+      <label>Select tags and set preferences:</label>
+      <select id="preferred" name="preferred" multiple style="display: none;"></select>
+      <div class="tag-list" id="preferredTags"></div>
+
+      <!-- Submit -->
+      <button class="btn" type="submit">Generate Weekly Schedule</button>
+    </form>
+  </div>
+
+  <script>
+    let currentFilteredDishes = [];
+    let currentPreferred = [];
+    let tagSettings = {}; // Stores settings for each tag
+
+    const preferredTagsEl = document.getElementById("preferredTags");
+    const preferredSelect = document.getElementById("preferred");
+
+    const webAppUrl =
+      "https://script.google.com/macros/s/AKfycbwA7R0GYMao0Os9_-5kwkQCONGzPwwRDhTM7nN3QMztOv0XtKPnEXwpjEvAmVfa6qgw/exec";
+
+    function createTagElement(tag, container, select) {
+      const tagContainer = document.createElement("div");
+      tagContainer.className = "tag-container";
+
+      const span = document.createElement("span");
+      span.className = "tag";
+
+      const tagText = document.createElement("span");
+      tagText.textContent = tag;
+
+      // Initialize tag settings (all tags start selected)
+      tagSettings[tag] = {
+        count: 1,
+        mandatory: false,
+        selected: true
+      };
+
+      // Add controls for all tags
+      const controls = document.createElement("div");
+      controls.className = "tag-controls";
+
+      // Count control
+      const count = document.createElement("div");
+      count.className = "tag-count";
+      count.textContent = tagSettings[tag].count;
+      count.onclick = (e) => {
+        e.stopPropagation();
+        tagSettings[tag].count = (tagSettings[tag].count % 14) + 1; // Cycle 1-7
+        count.textContent = tagSettings[tag].count;
+      };
+
+      // Mandatory control
+      const mandatory = document.createElement("div");
+      mandatory.className = `tag-mandatory ${tagSettings[tag].mandatory ? 'active' : ''}`;
+      mandatory.innerHTML = '<i data-lucide="shield"></i>';
+      mandatory.onclick = (e) => {
+        e.stopPropagation();
+        tagSettings[tag].mandatory = !tagSettings[tag].mandatory;
+        mandatory.classList.toggle('active');
+        lucide.createIcons(); // Refresh icons
+      };
+
+      controls.appendChild(count);
+      controls.appendChild(mandatory);
+      span.appendChild(tagText);
+      span.appendChild(controls);
+
+      span.onclick = () => {
+        tagSettings[tag].selected = !tagSettings[tag].selected;
+
+        if (tagSettings[tag].selected) {
+          span.classList.remove("unselected");
+          // Reset count and mandatory when reselecting
+          tagSettings[tag].count = 1;
+          tagSettings[tag].mandatory = false;
+          count.textContent = 1;
+          mandatory.className = "tag-mandatory";
+        } else {
+          span.classList.add("unselected");
+          // Reset settings when unselected
+          tagSettings[tag].count = 0;
+          tagSettings[tag].mandatory = false;
+          count.textContent = 0;
+          mandatory.className = "tag-mandatory";
+        }
+
+        const options = Array.from(select.options);
+        const exists = options.find(opt => opt.value === tag);
+
+        if (tagSettings[tag].selected) {
+          if (!exists) {
+            const opt = document.createElement("option");
+            opt.value = tag;
+            opt.selected = true;
+            select.appendChild(opt);
+          }
+        } else {
+          if (exists) select.removeChild(exists);
+        }
+
+        lucide.createIcons();
+      };
+
+      // Add to select by default (all tags start selected)
+      const opt = document.createElement("option");
+      opt.value = tag;
+      opt.selected = true;
+      select.appendChild(opt);
+
+      tagContainer.appendChild(span);
+      container.appendChild(tagContainer);
+    }
+
+    async function fetchTags() {
+      try {
+        const res = await fetch(webAppUrl + "?type=tag");
+        if (!res.ok) throw new Error("Failed to fetch tags");
+        const tags = await res.json();
+        return tags;
+      } catch (err) {
+        alert("Error loading tags from the sheet.");
+        console.error(err);
+        return [];
+      }
+    }
+
+    async function populateTags() {
+      const allTags = await fetchTags();
+      console.log("Fetched tags:", allTags);
+
+      // Clear containers in case of reload
+      preferredTagsEl.innerHTML = "";
+      preferredSelect.innerHTML = "";
+
+      allTags.forEach(tag => {
+        createTagElement(tag, preferredTagsEl, preferredSelect);
+      });
+      preferredTagsEl.style.display = "flex";
+
+      lucide.createIcons();
+    }
+
+    async function fetchDishes() {
+      try {
+        const res = await fetch(webAppUrl);
+        if (!res.ok) throw new Error("Failed to fetch dishes");
+        const dishes = await res.json();
+        return dishes;
+      } catch (err) {
+        alert("Error loading dishes from the sheet.");
+        console.error(err);
+        return [];
+      }
+    }
+
+    function filterDishes(dishes, preferred) {
+      if (preferred.length === 0) return dishes;
+
+      return dishes.filter(dish => {
+        return preferred.some(tag => dish.tags.includes(tag));
+      });
+    }
+
+    function getRandomDish(dishes, excludeNames = new Set()) {
+      if (dishes.length === 0) return null;
+
+      const availableDishes = dishes.filter(dish => !excludeNames.has(dish.name));
+
+      if (availableDishes.length === 0) {
+        return dishes.length > 0 ? dishes[Math.floor(Math.random() * dishes.length)] : null;
+      }
+
+      return availableDishes[Math.floor(Math.random() * availableDishes.length)];
+    }
+
+    function generateSchedule(dishes, days) {
+      if (dishes.length === 0) return [];
+
+      const schedule = [];
+      const usedDishNames = new Set();
+
+      // Get all selected tags with their settings
+      const selectedTags = Array.from(preferredSelect.options)
+        .map(opt => ({
+          tag: opt.value,
+          count: tagSettings[opt.value]?.count || 0,
+          mandatory: tagSettings[opt.value]?.mandatory || false
+        }))
+        .filter(t => t.count > 0); // Only include tags with count > 0
+
+      // First try to fulfill mandatory tag requirements
+      const mandatoryTags = selectedTags.filter(t => t.mandatory);
+      for (const {
+          tag,
+          count
+        } of mandatoryTags) {
+        const taggedDishes = dishes.filter(d => d.tags.includes(tag));
+        const availableTaggedDishes = taggedDishes.filter(d => !usedDishNames.has(d.name));
+
+        for (let i = 0; i < Math.min(count, availableTaggedDishes.length); i++) {
+          const randomIndex = Math.floor(Math.random() * availableTaggedDishes.length);
+          const dish = availableTaggedDishes[randomIndex];
+
+          const mealType = schedule.length % 2 === 0 ? 'lunch' : 'dinner';
+          const dayIndex = Math.floor(schedule.length / 2);
+
+          if (!schedule[dayIndex]) {
+            schedule[dayIndex] = {
+              lunch: null,
+              dinner: null
+            };
+          }
+
+          schedule[dayIndex][mealType] = dish;
+          usedDishNames.add(dish.name);
+          availableTaggedDishes.splice(randomIndex, 1);
+        }
+      }
+
+      // Then try to fulfill non-mandatory tag counts
+      const nonMandatoryTags = selectedTags.filter(t => !t.mandatory);
+      for (const {
+          tag,
+          count
+        } of nonMandatoryTags) {
+        const taggedDishes = dishes.filter(d => d.tags.includes(tag));
+        const availableTaggedDishes = taggedDishes.filter(d => !usedDishNames.has(d.name));
+
+        for (let i = 0; i < Math.min(count, availableTaggedDishes.length); i++) {
+          const randomIndex = Math.floor(Math.random() * availableTaggedDishes.length);
+          const dish = availableTaggedDishes[randomIndex];
+
+          const mealType = schedule.length % 2 === 0 ? 'lunch' : 'dinner';
+          const dayIndex = Math.floor(schedule.length / 2);
+
+          if (!schedule[dayIndex]) {
+            schedule[dayIndex] = {
+              lunch: null,
+              dinner: null
+            };
+          }
+
+          if (!schedule[dayIndex][mealType]) {
+            schedule[dayIndex][mealType] = dish;
+            usedDishNames.add(dish.name);
+            availableTaggedDishes.splice(randomIndex, 1);
+          }
+        }
+      }
+
+      // Fill remaining slots with random dishes
+      for (let i = 0; i < days; i++) {
+        if (!schedule[i]) {
+          schedule[i] = {
+            lunch: null,
+            dinner: null
+          };
+        }
+
+        if (!schedule[i].lunch) {
+          const lunchDish = getRandomDish(dishes, usedDishNames);
+          if (lunchDish) {
+            schedule[i].lunch = lunchDish;
+            usedDishNames.add(lunchDish.name);
+          }
+        }
+
+        if (!schedule[i].dinner) {
+          const dinnerDish = getRandomDish(dishes, usedDishNames);
+          if (dinnerDish) {
+            schedule[i].dinner = dinnerDish;
+            usedDishNames.add(dinnerDish.name);
+          }
+        }
+      }
+
+      return schedule;
+    }
+
+    // Initialize the app
+    populateTags();
+
+    document.getElementById("scheduleForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const days = parseInt(document.getElementById("days").value);
+      if (days < 1 || days > 7) {
+        alert("Please select a number of days between 1 and 7.");
+        return;
+      }
+
+      currentPreferred = Array.from(preferredSelect.options)
+        .map(opt => opt.value)
+        .filter(tag => tagSettings[tag]?.selected);
+
+      const allDishes = await fetchDishes();
+      currentFilteredDishes = filterDishes(allDishes, currentPreferred);
+
+      const schedule = generateSchedule(currentFilteredDishes, days);
+      displaySchedule(schedule);
+    });
+
+    function displaySchedule(schedule) {
+      let existing = document.getElementById("scheduleResult");
+      if (existing) existing.remove();
+
+      const container = document.querySelector(".container");
+      const div = document.createElement("div");
+      div.id = "scheduleResult";
+
+      if (schedule.length === 0) {
+        div.textContent = "No dishes match your filters 😕";
+        container.appendChild(div);
+        return;
+      }
+
+      const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+
+      const emptyTh = document.createElement("th");
+      emptyTh.textContent = "";
+      headerRow.appendChild(emptyTh);
+
+      for (let i = 0; i < schedule.length; i++) {
+        const th = document.createElement("th");
+        th.textContent = daysOfWeek[i];
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      // Lunch Row
+      const lunchRow = document.createElement("tr");
+      const lunchLabel = document.createElement("td");
+      lunchLabel.textContent = "Lunch";
+      lunchRow.appendChild(lunchLabel);
+
+      schedule.forEach((day, index) => {
+        const td = document.createElement("td");
+        td.className = "lunch";
+        td.textContent = day.lunch ? day.lunch.name : "-";
+        td.title = day.lunch ? day.lunch.name : "";
+        td.addEventListener("click", () => {
+          const usedNames = new Set();
+          schedule.forEach((day, idx) => {
+            if (idx !== index && day.lunch) usedNames.add(day.lunch.name);
+            if (day.dinner) usedNames.add(day.dinner.name);
+          });
+
+          const newDish = getRandomDish(
+            currentFilteredDishes.filter(d => !usedNames.has(d.name))
+          );
+          if (newDish) {
+            td.textContent = newDish.name;
+            schedule[index].lunch = newDish;
+          }
+        });
+        lunchRow.appendChild(td);
+      });
+      tbody.appendChild(lunchRow);
+
+      // Dinner Row
+      const dinnerRow = document.createElement("tr");
+      const dinnerLabel = document.createElement("td");
+      dinnerLabel.textContent = "Dinner";
+      dinnerRow.appendChild(dinnerLabel);
+
+      schedule.forEach((day, index) => {
+        const td = document.createElement("td");
+        td.className = "dinner";
+        td.textContent = day.dinner ? day.dinner.name : "-";
+        td.title = day.dinner ? day.dinner.name : "";
+        td.addEventListener("click", () => {
+          const usedNames = new Set();
+          schedule.forEach((day, idx) => {
+            if (day.lunch) usedNames.add(day.lunch.name);
+            if (idx !== index && day.dinner) usedNames.add(day.dinner.name);
+          });
+
+          const newDish = getRandomDish(
+            currentFilteredDishes.filter(d => !usedNames.has(d.name))
+          );
+          if (newDish) {
+            td.textContent = newDish.name;
+            schedule[index].dinner = newDish;
+          }
+        });
+        dinnerRow.appendChild(td);
+      });
+      tbody.appendChild(dinnerRow);
+
+      table.appendChild(tbody);
+      div.appendChild(table);
+      container.appendChild(div);
+
+      lucide.createIcons();
+    }
+  </script>
+</body>
+
+</html>
